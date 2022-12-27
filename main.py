@@ -17,6 +17,18 @@ class LightType(Enum):
     directional = 2
 
 @dataclass
+class Triangle:
+    v0: Point
+    v1: Point
+    v2: Point
+    color: Color
+
+    def getcenter(self) -> Point:
+        x0 = (self.v0[0]+self.v1[0]+self.v2[0])/3
+        y0 = (self.v0[1]+self.v1[1]+self.v2[1])/3
+        z0 = (self.v0[2]+self.v1[2]+self.v2[2])/3
+        return x0, y0, z0
+@dataclass
 class Light:
     type_: LightType
     intensity: float
@@ -83,11 +95,17 @@ class GSystem:
 
         return x, y, d
 
-    def traceRay(self, O: Point, D: Point, t_min: float, t_max: float) -> tuple[int, int, int]:
+    def traceRay(self, O: Point, D: Point, t_min: float, t_max: float) -> Color:
         closest_t = inf
         closest_sphere = None
         for sphere in self.scene.objects:
-            if not isinstance(sphere, Sphere): raise ValueError("Cant trace ray for non sphere")
+
+            if not isinstance(sphere, Sphere): 
+                p = IntersectRayTriangle(O, D, sphere.v0, sphere.v1, sphere.v2)
+                if p != None:
+                    return tuple(map(int, (numpy.array(sphere.color) * computeLighting(self.scene, P, N))))
+                else: continue
+            
             t1, t2 = IntersectRaySphere(O, D, sphere)
             if (t_min <= t1 <= t_max) and t1 < closest_t:
                 closest_t = t1
@@ -97,7 +115,6 @@ class GSystem:
                 closest_sphere = sphere
         if closest_sphere == None:
             return (0,0,0)
-        #print(type(closest_t), type(D), closest_t, D)
         P = O + closest_t * numpy.array(D)
         N = P - closest_sphere.center 
         return tuple(map(int, (numpy.array(closest_sphere.color) * computeLighting(self.scene, P, N))))
@@ -116,6 +133,27 @@ def IntersectRaySphere(O: Point, D: Point, sphere: Sphere) -> Color:
     t1 = (-b + discriminant**0.5) / (2*a)
     t2 = (-b - discriminant**0.5) / (2*a)
     return t1, t2
+
+def IntersectRayTriangle(O: Point, D: Point, v0: Point, v1: Point, v2: Point) -> Optional[Point]:
+    """
+    Based on the Moller-Trumbore ray-triangle intersection algorithm
+    """
+    v0, v1, v2 = numpy.array(v0), numpy.array(v1), numpy.array(v2)
+
+    e1 = v1 - v0
+    e2 = v2 - v0
+    pvec = numpy.cross(D, e2)
+    det = numpy.dot(e1, pvec)
+    if det < 1e-8 and det > -1e-8: return
+    inv_det = 1/ det
+    tvec = O - v0
+    u = numpy.dot(tvec, pvec) * inv_det
+    if u < 0 or u > 1: return
+    qvec = numpy.cross(tvec, e1)
+    v = numpy.dot(D, qvec) * inv_det
+    if (v < 0) or (u + v) > 1: return
+    distance = (numpy.dot(e2, qvec) * inv_det)
+    return tuple((O + distance) * D)
 
 def computeLighting(scene: Scene, P: Point, N: Point) -> float:
     i = 0.0
@@ -140,18 +178,20 @@ def main() -> None:
             Light(LightType.directional, 0.2, direction=(1, 4, 4))
         ],
         [
-            Sphere(
-                (255, 0, 0), 1, (0, 1, 3)
-            ),
+            #Sphere(
+            #    (255, 0, 0), 1, (0, 1, 3)
+            #),
             Sphere(
                 (0, 255, 0), 1, (2, 0, 4)
             ),
-            Sphere(
-                (0, 0, 255), 1, (-2, 0, 4)
-            ),
+            #Sphere(
+            #    (0, 0, 255), 1, (-2, 0, 4)
+            #),
+            Triangle((-4, 0, 8), (1, 0, 8), (-3, 3.5, 8), (0, 255, 255))
         ]
     )
     gs = GSystem(s, Canvas(800, 400), Viewport(2, 1, 1), Camera((0, 0, 0)))
+    #gs = GSystem(s, Canvas(200, 100), Viewport(2, 1, 1), Camera((0, 0, 0)))
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
             D = gs.canvasToViewport(x, y) 
