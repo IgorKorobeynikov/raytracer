@@ -6,7 +6,6 @@ except ImportError:
 from rtypes import Color
 
 class Primitive:
-    def __init__(self, center: float, radius: float, color: Color) -> Self:
-        self.center = center
+    def __init__(self, color: Color) -> Self:
         self.color = color
 
