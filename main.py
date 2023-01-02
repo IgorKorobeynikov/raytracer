@@ -17,6 +17,13 @@ class LightType(Enum):
     directional = 2
 
 @dataclass
+class Light:
+    type_: LightType
+    intensity: float
+    position: Optional[Point] = None
+    direction: Optional[Point] = None
+
+@dataclass
 class Triangle:
     v0: Point
     v1: Point
@@ -29,13 +36,8 @@ class Triangle:
         return x0, y0, z0
     def getnormal(self) -> numpy.ndarray:
         N = numpy.cross(numpy.array(self.v1)-numpy.array(self.v0), numpy.array(self.v2)-numpy.array(self.v0))
-        return N / N.sum()
-@dataclass
-class Light:
-    type_: LightType
-    intensity: float
-    position: Optional[Point] = None
-    direction: Optional[Point] = None
+        #print(N / numpy.linalg.norm(N))
+        return N / numpy.linalg.norm(N)
 
 class Scene:
     lights = list[Light]
@@ -81,7 +83,7 @@ class GSystem:
     def canvasToViewport(self, x: int, y: int) -> Point:
         x, y, d = (
             x*self.viewport.width / self.canvas.width,
-            y*self.viewport.height / self.canvas.height, 
+            -y*self.viewport.height / self.canvas.height, 
             self.viewport.distanse
         )
         center = numpy.array([0, 0])
@@ -96,7 +98,6 @@ class GSystem:
         d *= math.cos(math.radians(hfov))
 
         return x, y, d
-
 
     def traceRay(self, O: Point, D: Point, t_min: float, t_max: float) -> Color:
         closest_t = inf
@@ -119,7 +120,6 @@ class GSystem:
                     closest_object = object
             else: 
                 raise NotImplementedError("Not implemented yet")
-
         if closest_object == None:
             return (0, 0, 0)
         L = 1
@@ -131,12 +131,10 @@ class GSystem:
             P = numpy.array(closest_tp)
             N = closest_object.getnormal()
             L = computeLighting(self.scene, P, N)
-            #print(L)
         return tuple(map(int, (numpy.array(closest_object.color) * L)))
 
 
-
-def IntersectRaySphere(O: Point, D: Point, sphere: Sphere) -> tuple[float, float]:
+def IntersectRaySphere(O: Point, D: Point, sphere: Sphere) -> Color:
     r = sphere.radius
     CO = numpy.array(O) - numpy.array(sphere.center)
     a = numpy.dot(D, D)
@@ -171,16 +169,21 @@ def IntersectRayTriangle(O: Point, D: Point, v0: Point, v1: Point, v2: Point) ->
     distance = (numpy.dot(e2, qvec) * inv_det)
     return tuple((O + distance) * D)
 
-def computeLighting(scene: Scene, P: Point, N: Point) -> float:
+def computeLighting(scene: Scene, P: Point, N: numpy.ndarray) -> float:
+    """
+    P: A point on the surface
+    N: Normal of surface
+    """
     i = 0.0
     for light in scene.lights:
         if light.type_ == LightType.ambient:
             i += light.intensity
         else:
             if light.type_ == LightType.point:
+                # L direction: from P to Light
                 L = light.position - P
             else:
-                L = light.direction
+                L = -numpy.array(light.direction)
             n_dot_l = numpy.dot(N, L)
             if n_dot_l > 0:
                 i += light.intensity * n_dot_l/(numpy.linalg.norm(N) * numpy.linalg.norm(L))
@@ -189,26 +192,24 @@ def main() -> None:
 
     s = Scene(
         [
-            #Light(LightType.ambient, 0.2),
-            #Light(LightType.point, 1, position=(0, 0, 0)),
-            Light(LightType.directional, 1, direction=(0, 0, 1))
+            Light(LightType.ambient, 0.2),
+            Light(LightType.point, 0.6, position=(2, 1, 0)),
+            Light(LightType.directional, 0.6, direction=(1, 4, 4))
         ],
         [
-            #Sphere(
-            #    (255, 0, 0), 1, (0, 1, 3)
-            #),
-            #Sphere(
-            #    (0, 255, 0), 1, (2, 0, 4)
-            #),
-            #Sphere(
-            #    (0, 0, 255), 1, (-2, 0, 4)
-            #),
-            Triangle((-1, -1, 3), (-1, 1, 3), (1, 0, 3), (0, 0, 255))
+            Sphere(
+                (255, 0, 0), 1, (0, -1, 3)
+            ),
+            Sphere(
+                (0, 255, 0), 1, (2, 0, 4)
+            ),
+            Sphere(
+                (0, 0, 255), 1, (-2, 0, 4)
+            ),
+            Triangle((-0.5, -0.5, 3), (-0.5, 0.5, 3), (0.5, 0, 5), (0, 0, 255))
         ]
     )
-    #gs = GSystem(s, Canvas(1366, 768), Viewport(1.77864583, 1, 1), Camera((0, 0, 0)))
-    gs = GSystem(s, Canvas(800, 400), Viewport(2, 1, 1), Camera((0, 0, 0)))
-    #gs = GSystem(s, Canvas(200, 100), Viewport(2, 1, 1), Camera((0, 0, -1)))
+    gs = GSystem(s, Canvas(600, 300), Viewport(2, 1, 1), Camera((0, 0, 0)))
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
             D = gs.canvasToViewport(x, y) 
