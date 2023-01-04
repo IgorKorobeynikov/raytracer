@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-
+from rtypes import Color, Point
 @dataclass
 class Sphere:
-    color: tuple[float, float, float]
+    color: Color
     radius: float
-    center: tuple[float, float, float]
+    center: Point
