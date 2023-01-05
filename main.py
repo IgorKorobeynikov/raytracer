@@ -25,7 +25,6 @@ class Light:
     direction: Optional[Point] = None
 
 
-
 class Scene:
     lights = List[Light]
     objects: List[Primitive] = []
@@ -84,7 +83,7 @@ class GSystem:
         hfov = math.degrees(math.asin(sin_of_hfov))
 
         d *= math.cos(math.radians(hfov))
-        return x, y, d
+        return vec3(x, y, d)
 
     def traceRay(self, O: Point, D: Point, t_min: float, t_max: float) -> Color:
         closest_t = inf
@@ -113,12 +112,12 @@ class GSystem:
         if isinstance(closest_object,Sphere):
             P = O + closest_t * vec3(D)
             N = P - closest_object.center
-            L = computeLighting(self.scene, P, N)
+            L = computeLighting(self.scene, P, N, -D, closest_object.specular)
         elif isinstance(closest_object,Triangle):
             P = vec3(closest_tp)
             N = closest_object.normal
-            L = computeLighting(self.scene, P, N)
-            #print(L)
+            L = computeLighting(self.scene, P, N, -D, closest_object.specular)
+
         return tuple(map(int, (vec3(closest_object.color) * L)))
 
 def ReflectRay(R, N):
@@ -159,7 +158,7 @@ def IntersectRayTriangle(O: Point, D: Point, v0: Point, v1: Point, v2: Point) ->
     distance = dot(e2, qvec) * inv_det
     return tuple((O + distance) * D)
 
-def computeLighting(scene: Scene, P: Point, N: Vector3f) -> float:
+def computeLighting(scene: Scene, P: Point, N: Vector3f, V: Vector3f, s: float) -> float:
     """
     P: A point on the surface
     N: Normal of surface
@@ -173,32 +172,61 @@ def computeLighting(scene: Scene, P: Point, N: Vector3f) -> float:
                 # L направлен к светильнику
                 L = light.position - P
             else:
-                L = -vec3(light.direction)
+                L = -light.direction
             n_dot_l = dot(N, L)
             if n_dot_l > 0:
                 i += light.intensity * n_dot_l/(length(N) * length(L))
+            if s != -1:
+                R = 2 * N * dot(N, L) - L
+                r_dot_v = dot(R, V)
+                if r_dot_v > 0:
+                    i += light.intensity * pow(r_dot_v/(length(R) * length(V)), s)
+
+            
     assert isinstance(i, vec3)
     return i
 def main() -> None:
 
     s = Scene(
         [
-            Light(LightType.point, vec3(1, 1, 1), position=(0, 1, 0)),
+            Light(
+                type_=LightType.ambient, 
+                intensity=vec3(0.2, 0.2, 0.2)
+            ),
+            Light(
+                type_=LightType.point, 
+                intensity=vec3(0.6, 0.6, 0.6), 
+                position=vec3(2, 0, 1)
+            ),
+            Light(
+                type_=LightType.directional,
+                intensity=vec3(0.2, 0.2, 0.2), 
+                direction=vec3(1, 4, 4)
+            ),
         ],
         [
             Sphere(
-                (255, 0, 0), 1, (0, -1, 3)
+                color=u8vec3(255, 0, 0), 
+                radius=1, 
+                center=vec3(0, -1, 3),
+                specular=500
             ),
             Sphere(
-                (0, 255, 0), 1, (2, 0, 4)
+                color=u8vec3(0, 0, 255), 
+                radius=1, 
+                center=vec3(2, 0, 4),
+                specular=500
             ),
             Sphere(
-                (255, 255, 255), 1, (-2, 0, 4)
+                color=u8vec3(0, 255, 0), 
+                radius=1, 
+                center=vec3(-2, 0, 4),
+                specular=10
             ),
             #*Loader("./duck.obj").triangles
         ]
     )
-    gs = GSystem(s, Canvas(500, 250), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
+    gs = GSystem(s, Canvas(800, 400), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
 
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
