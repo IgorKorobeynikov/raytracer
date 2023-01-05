@@ -2,7 +2,9 @@ from geometry.triangle import Triangle
 from rtypes import Color, Point
 
 from glm import u8vec3, vec3
+from random import randint
 
+rnd = lambda: randint(0, 255)
 class Loader:
     def __init__(self, objfilepath: str) -> None:
         self.vertexmap = {}
@@ -20,5 +22,5 @@ class Loader:
                     v0 = vec3(self.vertexmap[parsed[2]])
                     v1 = vec3(self.vertexmap[parsed[1]])
                     v2 = vec3(self.vertexmap[parsed[0]])
-                    triangle = Triangle(v0, v1, v2, u8vec3(0, 255, 0))
+                    triangle = Triangle(v0, v1, v2, u8vec3(rnd(), rnd(), rnd()))
                     self.triangles.append(triangle)

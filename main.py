@@ -1,13 +1,14 @@
-from typing import Any, Optional
+from typing import Any, Optional, List
 from dataclasses import dataclass
 import math
-
-import numpy
 from PIL import Image
+from glm import u8vec3, vec2, vec3, length, cross, dot
 
 from geometry.sphere import Sphere
 from geometry.primitive import Primitive
-from rtypes import Color, Point
+from geometry.triangle import Triangle
+from rtypes import Color, Point, Vector3f
+from vertexloader import Loader
 from enum import Enum
 inf = float("inf")
 
@@ -23,25 +24,11 @@ class Light:
     position: Optional[Point] = None
     direction: Optional[Point] = None
 
-@dataclass
-class Triangle:
-    v0: Point
-    v1: Point
-    v2: Point
-    color: Color
-    def getcenter(self) -> Point:
-        x0 = (self.v0[0]+self.v1[0]+self.v2[0])/3
-        y0 = (self.v0[1]+self.v1[1]+self.v2[1])/3
-        z0 = (self.v0[2]+self.v1[2]+self.v2[2])/3
-        return x0, y0, z0
-    def getnormal(self) -> numpy.ndarray:
-        N = numpy.cross(numpy.array(self.v1)-numpy.array(self.v0), numpy.array(self.v2)-numpy.array(self.v0))
-        #print(N / numpy.linalg.norm(N))
-        return N / numpy.linalg.norm(N)
+
 
 class Scene:
-    lights = list[Light]
-    objects: list[Primitive] = []
+    lights = List[Light]
+    objects: List[Primitive] = []
     def __init__(self, ligths, objects) -> None:
         self.lights = ligths
         self.objects = objects
@@ -62,6 +49,7 @@ class Canvas:
     def get_pixel(self, x: int, y: int) -> Color:
         return self._pixels[y][x]
     def show(self) -> None:
+        self._image.save("Shere_with_duck.png")
         self._image.show()
 @dataclass
 class Viewport:
@@ -86,9 +74,9 @@ class GSystem:
             -y*self.viewport.height / self.canvas.height, 
             self.viewport.distanse
         )
-        center = numpy.array([0, 0])
+        center = vec2([0, 0])
 
-        cathet1 = numpy.linalg.norm(numpy.array([x, y]) - center) # scalar value, cathet opposite the fov angle
+        cathet1 = length(vec2([x, y]) - center) # scalar value, cathet opposite the fov angle
         cathet2 = d # scalar value
         hypot = math.sqrt(cathet1 ** 2 + cathet2 ** 2)
 
@@ -96,7 +84,6 @@ class GSystem:
         hfov = math.degrees(math.asin(sin_of_hfov))
 
         d *= math.cos(math.radians(hfov))
-
         return x, y, d
 
     def traceRay(self, O: Point, D: Point, t_min: float, t_max: float) -> Color:
@@ -105,8 +92,8 @@ class GSystem:
         for object in self.scene.objects:
             if isinstance(object, Triangle):
                 if p := IntersectRayTriangle(O, D, object.v0, object.v1, object.v2):
-                    if not numpy.linalg.norm(p) < closest_t: continue
-                    closest_t = numpy.linalg.norm(p)
+                    if not length(p) < closest_t: continue
+                    closest_t = length(p)
                     closest_tp = p
                     closest_object = object
                 else: continue
@@ -121,25 +108,28 @@ class GSystem:
             else: 
                 raise NotImplementedError("Not implemented yet")
         if closest_object == None:
-            return (0, 0, 0)
+            return u8vec3(0, 0, 0)
         L = 1
         if isinstance(closest_object,Sphere):
-            P = O + closest_t * numpy.array(D)
+            P = O + closest_t * vec3(D)
             N = P - closest_object.center
             L = computeLighting(self.scene, P, N)
         elif isinstance(closest_object,Triangle):
-            P = numpy.array(closest_tp)
-            N = closest_object.getnormal()
+            P = vec3(closest_tp)
+            N = closest_object.normal
             L = computeLighting(self.scene, P, N)
-        return tuple(map(int, (numpy.array(closest_object.color) * L)))
+            #print(L)
+        return tuple(map(int, (vec3(closest_object.color) * L)))
 
-
+def ReflectRay(R, N):
+    return 2 * N * dot(N, R) - R
+    
 def IntersectRaySphere(O: Point, D: Point, sphere: Sphere) -> Color:
     r = sphere.radius
-    CO = numpy.array(O) - numpy.array(sphere.center)
-    a = numpy.dot(D, D)
-    b  = 2 * numpy.dot(CO, D)
-    c = numpy.dot(CO, CO) - r*r
+    CO = O - sphere.center
+    a = dot(D, D)
+    b  = 2 * dot(CO, D)
+    c = dot(CO, CO) - r*r
     discriminant = b*b - 4*a*c
     
     if discriminant < 0:
@@ -152,49 +142,48 @@ def IntersectRayTriangle(O: Point, D: Point, v0: Point, v1: Point, v2: Point) ->
     """
     Based on the Moller-Trumbore ray-triangle intersection algorithm
     """
-    v0, v1, v2 = numpy.array(v0), numpy.array(v1), numpy.array(v2)
+    v0, v1, v2 = vec3(v0), vec3(v1), vec3(v2)
 
     e1 = v1 - v0
     e2 = v2 - v0
-    pvec = numpy.cross(D, e2)
-    det = numpy.dot(e1, pvec)
+    pvec = cross(D, e2)
+    det = dot(e1, pvec)
     if det < 1e-8 and det > -1e-8: return
     inv_det = 1/ det
     tvec = O - v0
-    u = numpy.dot(tvec, pvec) * inv_det
+    u = dot(tvec, pvec) * inv_det
     if u < 0 or u > 1: return
-    qvec = numpy.cross(tvec, e1)
-    v = numpy.dot(D, qvec) * inv_det
+    qvec = cross(tvec, e1)
+    v = dot(D, qvec) * inv_det
     if (v < 0) or (u + v) > 1: return
-    distance = (numpy.dot(e2, qvec) * inv_det)
+    distance = dot(e2, qvec) * inv_det
     return tuple((O + distance) * D)
 
-def computeLighting(scene: Scene, P: Point, N: numpy.ndarray) -> float:
+def computeLighting(scene: Scene, P: Point, N: Vector3f) -> float:
     """
     P: A point on the surface
     N: Normal of surface
     """
-    i = 0.0
+    i = vec3()
     for light in scene.lights:
         if light.type_ == LightType.ambient:
             i += light.intensity
         else:
             if light.type_ == LightType.point:
-                # L direction: from P to Light
+                # L направлен к светильнику
                 L = light.position - P
             else:
-                L = -numpy.array(light.direction)
-            n_dot_l = numpy.dot(N, L)
+                L = -vec3(light.direction)
+            n_dot_l = dot(N, L)
             if n_dot_l > 0:
-                i += light.intensity * n_dot_l/(numpy.linalg.norm(N) * numpy.linalg.norm(L))
+                i += light.intensity * n_dot_l/(length(N) * length(L))
+    assert isinstance(i, vec3)
     return i
 def main() -> None:
 
     s = Scene(
         [
-            Light(LightType.ambient, 0.2),
-            Light(LightType.point, 0.6, position=(2, 1, 0)),
-            Light(LightType.directional, 0.6, direction=(1, 4, 4))
+            Light(LightType.point, vec3(1, 1, 1), position=(0, 1, 0)),
         ],
         [
             Sphere(
@@ -204,17 +193,21 @@ def main() -> None:
                 (0, 255, 0), 1, (2, 0, 4)
             ),
             Sphere(
-                (0, 0, 255), 1, (-2, 0, 4)
+                (255, 255, 255), 1, (-2, 0, 4)
             ),
-            Triangle((-0.5, -0.5, 3), (-0.5, 0.5, 3), (0.5, 0, 5), (0, 0, 255))
+            #*Loader("./duck.obj").triangles
         ]
     )
-    gs = GSystem(s, Canvas(600, 300), Viewport(2, 1, 1), Camera((0, 0, 0)))
+    gs = GSystem(s, Canvas(500, 250), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
+
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
+
             D = gs.canvasToViewport(x, y) 
-            color = gs.traceRay(gs.camera.position, D, 1, inf)
+            
+            color = tuple(gs.traceRay(gs.camera.position, D, 1, inf))
             gs.canvas.put_pixel(x, y, color)
+
     gs.canvas.show()
 
 if __name__ == "__main__":
