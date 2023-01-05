@@ -5,3 +5,4 @@ class Sphere:
     color: Color
     radius: float
     center: Point
+    specular: float

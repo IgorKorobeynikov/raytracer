@@ -7,6 +7,7 @@ class Triangle:
     v1: Point
     v2: Point
     color: Color
+    specular: float
 
     def __post_init__(self) -> None:
         N = cross(self.v1-self.v0, self.v2-self.v0)
