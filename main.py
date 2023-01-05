@@ -142,7 +142,6 @@ def IntersectRayTriangle(O: Point, D: Point, v0: Point, v1: Point, v2: Point) ->
     Based on the Moller-Trumbore ray-triangle intersection algorithm
     """
     v0, v1, v2 = vec3(v0), vec3(v1), vec3(v2)
-
     e1 = v1 - v0
     e2 = v2 - v0
     pvec = cross(D, e2)
@@ -156,7 +155,7 @@ def IntersectRayTriangle(O: Point, D: Point, v0: Point, v1: Point, v2: Point) ->
     v = dot(D, qvec) * inv_det
     if (v < 0) or (u + v) > 1: return
     distance = dot(e2, qvec) * inv_det
-    return tuple((O + distance) * D)
+    return vec3((O + distance) * D)
 
 def computeLighting(scene: Scene, P: Point, N: Vector3f, V: Vector3f, s: float) -> float:
     """
@@ -226,7 +225,7 @@ def main() -> None:
             #*Loader("./duck.obj").triangles
         ]
     )
-    gs = GSystem(s, Canvas(800, 400), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
+    gs = GSystem(s, Canvas(1200, 600), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
 
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
