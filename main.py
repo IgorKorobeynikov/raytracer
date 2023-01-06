@@ -195,7 +195,7 @@ def main() -> None:
             Light(
                 type_=LightType.point, 
                 intensity=vec3(0.6, 0.6, 0.6), 
-                position=vec3(2, 0, 1)
+                position=vec3(2, 1, 0)
             ),
             Light(
                 type_=LightType.directional,
