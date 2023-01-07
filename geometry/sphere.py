@@ -6,3 +6,4 @@ class Sphere:
     radius: float
     center: Point
     specular: float
+    reflective: float
