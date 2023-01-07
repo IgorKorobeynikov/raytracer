@@ -6,7 +6,7 @@ Requirements: `pillow`, `PyGLM`
 ## How to use?
 1. `git clone https://github.com/linux-admin0001/raytracer.git`
 2. `cd raytracer`
-3. `python -m pip install PyGLM, pillow`
+3. `python -m pip install PyGLM pillow`
 4. `python main.py`
 5. Enjoy!
 
