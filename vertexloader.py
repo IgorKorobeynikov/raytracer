@@ -22,5 +22,5 @@ class Loader:
                     v0 = vec3(self.vertexmap[parsed[2]])
                     v1 = vec3(self.vertexmap[parsed[1]])
                     v2 = vec3(self.vertexmap[parsed[0]])
-                    triangle = Triangle(v0, v1, v2, u8vec3(rnd(), rnd(), rnd()))
+                    triangle = Triangle(v0, v1, v2, u8vec3(rnd(), rnd(), rnd()), specular=500)
                     self.triangles.append(triangle)
