@@ -1,8 +1,8 @@
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Tuple
 from dataclasses import dataclass
 import math
 from PIL import Image
-from glm import u8vec3, vec2, vec3, length, cross, dot
+from glm import u8vec3, vec2, vec3, length, cross, dot, normalize
 
 from geometry.sphere import Sphere
 from geometry.primitive import Primitive
@@ -85,40 +85,75 @@ class GSystem:
         d *= math.cos(math.radians(hfov))
         return vec3(x, y, d)
 
-    def traceRay(self, O: Point, D: Point, t_min: float, t_max: float) -> Color:
+    def closestIntersection(self, O: Point, D: Point, t_min: float, t_max: float) -> Tuple[Primitive, float]:
         closest_t = inf
         closest_object = None
-        for object in self.scene.objects:
-            if isinstance(object, Triangle):
-                if p := IntersectRayTriangle(O, D, object.v0, object.v1, object.v2):
+        for object_ in self.scene.objects:
+            if isinstance(object_, Triangle):
+                if p := IntersectRayTriangle(O, D, object_.v0, object_.v1, object_.v2):
                     if not length(p) < closest_t: continue
                     closest_t = length(p)
-                    closest_tp = p
-                    closest_object = object
+                    closest_object = object_
                 else: continue
-            elif isinstance(object, Sphere):
-                t1, t2 = IntersectRaySphere(O, D, object)
+            elif isinstance(object_, Sphere):
+                t1, t2 = IntersectRaySphere(O, D, object_)
                 if (t_min <= t1 <= t_max) and t1 < closest_t:
                     closest_t = t1
-                    closest_object = object
+                    closest_object = object_
                 if t_min <= t2 <= t_max and t2 < closest_t:
                     closest_t = t2
-                    closest_object = object
+                    closest_object = object_
             else: 
                 raise NotImplementedError("Not implemented yet")
+
+        return closest_object, closest_t
+    def traceRay(self, O: Point, D: Point, t_min: float, t_max: float) -> Color:
+        closest_object, closest_t = self.closestIntersection(O, D, t_min, t_max)
+
         if closest_object == None:
             return u8vec3(0, 0, 0)
-        L = 1
-        if isinstance(closest_object,Sphere):
-            P = O + closest_t * vec3(D)
-            N = P - closest_object.center
-            L = computeLighting(self.scene, P, N, -D, closest_object.specular)
-        elif isinstance(closest_object,Triangle):
-            P = vec3(closest_tp)
-            N = closest_object.normal
-            L = computeLighting(self.scene, P, N, -D, closest_object.specular)
+
+        P = O + closest_t * vec3(D)
+        N = P - closest_object.center
+        N = normalize(N)
+        L = self.computeLighting(P, N, -D, closest_object.specular)
 
         return tuple(map(int, (vec3(closest_object.color) * L)))
+
+    def computeLighting(self, P: Point, N: Vector3f, V: Vector3f, s: float) -> float:
+        """
+        P: A point on the surface
+        N: Normal of surface
+        """
+        i = vec3()
+        for light in self.scene.lights:
+            if light.type_ == LightType.ambient:
+                i += light.intensity
+            else:
+                if light.type_ == LightType.point:
+                    # L направлен к светильнику
+                    L = light.position - P
+                    t_max = 1
+                else:
+                    L = -light.direction
+                    t_max = inf
+
+                shadow_obj, shadow_t = self.closestIntersection(P, L, 0.001, t_max)
+
+                if shadow_obj != None:
+                    continue
+
+                n_dot_l = dot(N, L)
+                if n_dot_l > 0:
+                    i += light.intensity * n_dot_l/(length(N) * length(L))
+                if s != -1:
+                    R = 2 * N * dot(N, L) - L
+                    r_dot_v = dot(R, V)
+                    if r_dot_v > 0:
+                        i += light.intensity * pow(r_dot_v/(length(R) * length(V)), s)
+
+        assert isinstance(i, vec3)
+        return i
 
 def ReflectRay(R, N):
     return 2 * N * dot(N, R) - R
@@ -157,33 +192,7 @@ def IntersectRayTriangle(O: Point, D: Point, v0: Point, v1: Point, v2: Point) ->
     distance = dot(e2, qvec) * inv_det
     return vec3((O + distance) * D)
 
-def computeLighting(scene: Scene, P: Point, N: Vector3f, V: Vector3f, s: float) -> float:
-    """
-    P: A point on the surface
-    N: Normal of surface
-    """
-    i = vec3()
-    for light in scene.lights:
-        if light.type_ == LightType.ambient:
-            i += light.intensity
-        else:
-            if light.type_ == LightType.point:
-                # L направлен к светильнику
-                L = light.position - P
-            else:
-                L = -light.direction
-            n_dot_l = dot(N, L)
-            if n_dot_l > 0:
-                i += light.intensity * n_dot_l/(length(N) * length(L))
-            if s != -1:
-                R = 2 * N * dot(N, L) - L
-                r_dot_v = dot(R, V)
-                if r_dot_v > 0:
-                    i += light.intensity * pow(r_dot_v/(length(R) * length(V)), s)
 
-            
-    assert isinstance(i, vec3)
-    return i
 def main() -> None:
 
     s = Scene(
@@ -200,10 +209,16 @@ def main() -> None:
             Light(
                 type_=LightType.directional,
                 intensity=vec3(0.2, 0.2, 0.2), 
-                direction=vec3(1, 4, 4)
+                direction=-vec3(1, 4, 4)
             ),
         ],
         [
+            Sphere(
+                color=u8vec3(255, 255, 0), 
+                radius=5000, 
+                center=vec3(0, -5001, 0),
+                specular=500
+            ),
             Sphere(
                 color=u8vec3(255, 0, 0), 
                 radius=1, 
