@@ -2,7 +2,7 @@ from typing import Any, Optional, List, Tuple
 from dataclasses import dataclass
 import math
 from PIL import Image
-from glm import u8vec3, vec2, vec3, length, cross, dot, normalize
+from glm import u8vec3, vec2, vec3, length, cross, dot, normalize, reflect
 
 from geometry.sphere import Sphere
 from geometry.primitive import Primitive
@@ -97,10 +97,10 @@ class GSystem:
                 else: continue
             elif isinstance(object_, Sphere):
                 t1, t2 = IntersectRaySphere(O, D, object_)
-                if (t_min <= t1 <= t_max) and t1 < closest_t:
+                if ((t_min < t1) and (t1 < t_max)) and t1 < closest_t:
                     closest_t = t1
                     closest_object = object_
-                if t_min <= t2 <= t_max and t2 < closest_t:
+                if ((t_min < t2) and (t2 < t_max)) and t2 < closest_t:
                     closest_t = t2
                     closest_object = object_
             else: 
@@ -164,6 +164,7 @@ class GSystem:
         return i
 
 def ReflectRay(R, N):
+    #return reflect(-R, N)
     return 2 * N * dot(N, R) - R
 
 def IntersectRaySphere(O: Point, D: Point, sphere: Sphere) -> Color:
@@ -246,17 +247,23 @@ def main() -> None:
                 reflective=0.4 
             ),
             Sphere(
-                color=u8vec3(255, 255, 0), 
-                radius=5000, 
-                center=vec3(0, -5001, 0),
-                specular=1000,
-                reflective=0.5
-            )
+                color=u8vec3(255, 255, 255), 
+                radius=1, 
+                center=vec3(0, 0, -0.1),
+                specular=10,
+                reflective=0.4 
+            ),
+            #Sphere(
+            #    color=u8vec3(255, 255, 0), 
+            #    radius=5000, 
+            #    center=vec3(0, -5001, 0),
+            #    specular=1000,
+            #    reflective=0.5
+            #)
             #*Loader("./duck.obj").triangles
         ]
     )
-    gs = GSystem(s, Canvas(1200*2, 600*2), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
-    #gs = GSystem(s, Canvas(600, 600), Viewport(1, 1, 1), Camera(vec3(0, 0, 0)))
+    gs = GSystem(s, Canvas(1200//2, 600//2), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
 
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
