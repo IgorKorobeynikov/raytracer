@@ -247,19 +247,12 @@ def main() -> None:
                 reflective=0.4 
             ),
             Sphere(
-                color=u8vec3(255, 255, 255), 
-                radius=1, 
-                center=vec3(0, 0, -0.1),
-                specular=10,
-                reflective=0.4 
-            ),
-            #Sphere(
-            #    color=u8vec3(255, 255, 0), 
-            #    radius=5000, 
-            #    center=vec3(0, -5001, 0),
-            #    specular=1000,
-            #    reflective=0.5
-            #)
+                color=u8vec3(255, 255, 0), 
+                radius=5000, 
+                center=vec3(0, -5001, 0),
+                specular=1000,
+                reflective=0.5
+            )
             #*Loader("./duck.obj").triangles
         ]
     )
