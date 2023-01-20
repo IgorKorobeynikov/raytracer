@@ -146,7 +146,7 @@ class GSystem:
                     L = -light.direction
                     t_max = inf
 
-                shadow_obj, shadow_t = self.closestIntersection(P, L, 1, t_max)
+                shadow_obj, shadow_t = self.closestIntersection(P, L, 0.001, t_max)
 
                 if shadow_obj != None:
                     continue
@@ -228,7 +228,7 @@ def main() -> None:
             Sphere(
                 color=u8vec3(255, 0, 0), 
                 radius=1, 
-                center=vec3(0, 0, 3),
+                center=vec3(0, -1, 3),
                 specular=500,
                 reflective = 0.2
             ),
