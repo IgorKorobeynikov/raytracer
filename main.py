@@ -116,6 +116,10 @@ class GSystem:
         P = O + closest_t * vec3(D)
         N = P - closest_object.center
         N = normalize(N)
+
+        if not isinstance(closest_object, Sphere):
+            N = closest_object.normal
+
         L = self.computeLighting(P, N, -D, closest_object.specular)
         local_color = vec3asColor(vec3(closest_object.color) * L)
 
@@ -224,7 +228,8 @@ def main() -> None:
                 direction=-vec3(1, 4, 4)
             ),
         ],
-        [
+        [   
+            Triangle(vec3(-1, 1, 5), vec3(1, 1, 5), vec3(0, 4, 5), vec3(0, 255, 255),-1, 0.5),
             Sphere(
                 color=u8vec3(255, 0, 0), 
                 radius=1, 
