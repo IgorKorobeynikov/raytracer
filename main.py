@@ -2,7 +2,7 @@ from typing import Any, Optional, List, Tuple
 from dataclasses import dataclass
 import math
 from PIL import Image
-from glm import u8vec3, vec2, vec3, length, cross, dot, normalize, reflect
+from glm import u8vec3, vec2, vec3, length, cross, dot, normalize
 
 from geometry.sphere import Sphere
 from geometry.primitive import Primitive
@@ -73,16 +73,6 @@ class GSystem:
             -y*self.viewport.height / self.canvas.height, 
             self.viewport.distanse
         )
-        center = vec2([0, 0])
-
-        cathet1 = length(vec2([x, y]) - center) # scalar value, cathet opposite the fov angle
-        cathet2 = d # scalar value
-        hypot = math.sqrt(cathet1 ** 2 + cathet2 ** 2)
-
-        sin_of_hfov = (math.sin(math.radians(90)) * cathet1) / hypot # Sine theorem
-        hfov = math.degrees(math.asin(sin_of_hfov))
-
-        d *= math.cos(math.radians(hfov))
         return vec3(x, y, d)
 
     def closestIntersection(self, O: Point, D: Point, t_min: float, t_max: float) -> Tuple[Primitive, float]:
@@ -92,6 +82,7 @@ class GSystem:
             if isinstance(object_, Triangle):
                 if p := IntersectRayTriangle(O, D, object_.v0, object_.v1, object_.v2):
                     if not length(p) < closest_t: continue
+                    if not ((t_min < length(p)) and (length(p) < t_max)): continue
                     closest_t = length(p)
                     closest_object = object_
                 else: continue
@@ -118,7 +109,7 @@ class GSystem:
         N = normalize(N)
 
         if not isinstance(closest_object, Sphere):
-            N = closest_object.normal
+            N = -closest_object.normal
 
         L = self.computeLighting(P, N, -D, closest_object.specular)
         local_color = vec3asColor(vec3(closest_object.color) * L)
@@ -168,7 +159,6 @@ class GSystem:
         return i
 
 def ReflectRay(R, N):
-    #return reflect(-R, N)
     return 2 * N * dot(N, R) - R
 
 def IntersectRaySphere(O: Point, D: Point, sphere: Sphere) -> Color:
@@ -228,8 +218,9 @@ def main() -> None:
                 direction=-vec3(1, 4, 4)
             ),
         ],
-        [   
-            Triangle(vec3(-1, 1, 5), vec3(1, 1, 5), vec3(0, 4, 5), vec3(0, 255, 255),-1, 0.5),
+        [
+            Triangle(vec3(-1.5, 0.5, 5.2), vec3(1.5, 0.5, 5.2), vec3(-1.5, 2, 4), vec3(0, 0, 0), 500, 1),
+            Triangle(vec3(1.5, 0.5, 5.2), vec3(1.5, 2, 4), vec3(-1.5, 2, 4), vec3(0, 0, 0), 500, 1),
             Sphere(
                 color=u8vec3(255, 0, 0), 
                 radius=1, 
@@ -261,14 +252,14 @@ def main() -> None:
             #*Loader("./duck.obj").triangles
         ]
     )
-    gs = GSystem(s, Canvas(1200//2, 600//2), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
-
+    #gs = GSystem(s, Canvas(600, 300), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
+    gs = GSystem(s, Canvas(1200*4, 600*4), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
 
             D = gs.canvasToViewport(x, y) 
             
-            color = tuple(gs.traceRay(gs.camera.position, D, 1, inf, 2))
+            color = tuple(gs.traceRay(gs.camera.position, D, 1, inf, 4))
             gs.canvas.put_pixel(x, y, color)
 
     gs.canvas.show()
