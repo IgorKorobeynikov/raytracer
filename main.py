@@ -48,7 +48,7 @@ class Canvas:
     def get_pixel(self, x: int, y: int) -> Color:
         return self._pixels[y][x]
     def show(self) -> None:
-        self._image.save("Shere_with_duck.png")
+        self._image.save("rendered.png")
         self._image.show()
 @dataclass
 class Viewport:
