@@ -252,8 +252,7 @@ def main() -> None:
             #*Loader("./duck.obj").triangles
         ]
     )
-    #gs = GSystem(s, Canvas(600, 300), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
-    gs = GSystem(s, Canvas(1200*4, 600*4), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
+    gs = GSystem(s, Canvas(1200, 600), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
 
