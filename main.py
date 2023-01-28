@@ -1,8 +1,8 @@
 from typing import Any, Optional, List, Tuple
 from dataclasses import dataclass
-import math
+
 from PIL import Image
-from glm import u8vec3, vec2, vec3, length, cross, dot, normalize
+from glm import u8vec3, vec3, length, cross, dot, normalize
 
 from geometry.sphere import Sphere
 from geometry.primitive import Primitive
