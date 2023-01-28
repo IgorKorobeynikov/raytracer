@@ -81,6 +81,9 @@ class GSystem:
         for object_ in self.scene.objects:
             if isinstance(object_, Triangle):
                 if p := IntersectRayTriangle(O, D, object_.v0, object_.v1, object_.v2):
+
+                    if dot(D-O, object_.normal) > 0: continue
+                    
                     if not length(p) < closest_t: continue
                     if not ((t_min < length(p)) and (length(p) < t_max)): continue
                     closest_t = length(p)
@@ -104,12 +107,13 @@ class GSystem:
         if closest_object == None:
             return u8vec3(0, 0, 0)
 
+        # calculating normal for sphere
         P = O + closest_t * vec3(D)
         N = P - closest_object.center
         N = normalize(N)
 
         if not isinstance(closest_object, Sphere):
-            N = -closest_object.normal
+            N = closest_object.normal
 
         L = self.computeLighting(P, N, -D, closest_object.specular)
         local_color = vec3asColor(vec3(closest_object.color) * L)

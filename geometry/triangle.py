@@ -12,7 +12,7 @@ class Triangle:
 
     def __post_init__(self) -> None:
         N = cross(self.v1-self.v0, self.v2-self.v0)
-        self.normal = normalize(N)
+        self.normal = -normalize(N)
         self.center = self.getcenter()
 
     def getcenter(self) -> Point:
