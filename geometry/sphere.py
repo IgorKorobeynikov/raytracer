@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-from rtypes import Color, Point
+from material import Material
+from rtypes import Point
 @dataclass
 class Sphere:
-    color: Color
+    material: Material
     radius: float
     center: Point
-    specular: float
-    reflective: float

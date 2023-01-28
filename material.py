@@ -3,7 +3,7 @@ from glm import vec3
 
 @dataclass
 class Albedo:
-    spcular: float = 0
+    specular: float = 0
     diffuse: float = 0
 
 @dataclass

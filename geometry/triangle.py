@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from material import Material
 from rtypes import Color, Point
 from glm import cross, normalize
 @dataclass
@@ -6,9 +7,7 @@ class Triangle:
     v0: Point
     v1: Point
     v2: Point
-    color: Color
-    specular: float
-    reflective: float
+    material: Material
 
     def __post_init__(self) -> None:
         N = cross(self.v1-self.v0, self.v2-self.v0)

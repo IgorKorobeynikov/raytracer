@@ -1,6 +1,6 @@
-from typing import Any, Optional, List, Tuple
+from typing import Any, Optional, List, Tuple, Union
 from dataclasses import dataclass
-import math
+
 from PIL import Image
 from glm import u8vec3, vec2, vec3, length, cross, dot, normalize
 
@@ -9,6 +9,7 @@ from geometry.primitive import Primitive
 from geometry.triangle import Triangle
 from rtypes import Color, Point, Vector3f
 from vertexloader import Loader
+from material import Material, Albedo
 from enum import Enum
 inf = float("inf")
 
@@ -111,10 +112,10 @@ class GSystem:
         if not isinstance(closest_object, Sphere):
             N = -closest_object.normal
 
-        L = self.computeLighting(P, N, -D, closest_object.specular)
-        local_color = vec3asColor(vec3(closest_object.color) * L)
+        L = self.computeLighting(P, N, -D, closest_object)
+        local_color = vec3asColor(vec3(closest_object.material.color) * L)
 
-        r = closest_object.reflective
+        r = closest_object.material.reflective
         if rdepth <= 0 or r <= 0:
             return local_color
 
@@ -123,11 +124,12 @@ class GSystem:
 
         return vec3asColor(vec3(local_color) * (1 - r) + vec3(reflected_color) * r)
     
-    def computeLighting(self, P: Point, N: Vector3f, V: Vector3f, s: float) -> float:
+    def computeLighting(self, P: Point, N: Vector3f, V: Vector3f, object_: Union[Sphere, Triangle]) -> float:
         """
         P: A point on the surface
         N: Normal of surface
         """
+        s = object_.material.specular
         i = vec3()
         for light in self.scene.lights:
             if light.type_ == LightType.ambient:
@@ -147,13 +149,15 @@ class GSystem:
                     continue
 
                 n_dot_l = dot(N, L)
+                
+                # Calculating diffuse lighting
                 if n_dot_l > 0:
-                    i += light.intensity * n_dot_l/(length(N) * length(L))
+                    i += light.intensity * n_dot_l/(length(N) * length(L)) * object_.material.albedo.diffuse
                 if s != -1:
                     R = 2 * N * dot(N, L) - L
                     r_dot_v = dot(R, V)
                     if r_dot_v > 0:
-                        i += light.intensity * pow(r_dot_v/(length(R) * length(V)), s)
+                        i += light.intensity * pow(r_dot_v/(length(R) * length(V)), s) * object_.material.albedo.specular
 
         assert isinstance(i, vec3)
         return i
@@ -200,7 +204,7 @@ def vec3asColor(V: vec3) -> Color:
     return tuple(map(int, V))
 
 def main() -> None:
-
+    base_mat = Material(vec3(0, 255, 0), 50, 0.4, 0, 0, Albedo(1, 1))
     s = Scene(
         [
             Light(
@@ -219,36 +223,11 @@ def main() -> None:
             ),
         ],
         [
-            Triangle(vec3(-1.5, 0.5, 5.2), vec3(1.5, 0.5, 5.2), vec3(-1.5, 2, 4), vec3(0, 0, 0), 500, 1),
-            Triangle(vec3(1.5, 0.5, 5.2), vec3(1.5, 2, 4), vec3(-1.5, 2, 4), vec3(0, 0, 0), 500, 1),
             Sphere(
-                color=u8vec3(255, 0, 0), 
                 radius=1, 
-                center=vec3(0, -1, 3),
-                specular=500,
-                reflective = 0.2
+                center=vec3(0, 0, 3),
+                material=base_mat
             ),
-            Sphere(
-                color=u8vec3(0, 0, 255), 
-                radius=1, 
-                center=vec3(2, 0, 4),
-                specular=500,
-                reflective=0.3
-            ),
-            Sphere(
-                color=u8vec3(0, 255, 0), 
-                radius=1, 
-                center=vec3(-2, 0, 4),
-                specular=10,
-                reflective=0.4 
-            ),
-            Sphere(
-                color=u8vec3(255, 255, 0), 
-                radius=5000, 
-                center=vec3(0, -5001, 0),
-                specular=1000,
-                reflective=0.5
-            )
             #*Loader("./duck.obj").triangles
         ]
     )
