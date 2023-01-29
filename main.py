@@ -82,7 +82,7 @@ class GSystem:
             if isinstance(object_, Triangle):
                 if p := IntersectRayTriangle(O, D, object_.v0, object_.v1, object_.v2):
 
-                    if dot(D-O, object_.normal) > 0: continue
+                    if dot(D, object_.normal) > 0: continue
                     
                     if not length(p) < closest_t: continue
                     if not ((t_min < length(p)) and (length(p) < t_max)): continue
