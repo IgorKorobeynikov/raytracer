@@ -10,6 +10,9 @@ Requirements: `pillow`, `PyGLM`
 4. `python main.py`
 5. Enjoy!
 
+### Warning!
+https://github.com/linux-admin0001/raytracer/issues/5
+
 ## Gallery
 ![SCENE_23_01_2023](https://user-images.githubusercontent.com/73735838/214106276-8426846d-1223-4975-b741-fcebaefcf87b.png)
 
