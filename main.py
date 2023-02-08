@@ -80,13 +80,13 @@ class GSystem:
         closest_object = None
         for object_ in self.scene.objects:
             if isinstance(object_, Triangle):
-                if p := IntersectRayTriangle(O, D, object_.v0, object_.v1, object_.v2):
+                if t1 := IntersectRayTriangle(O, D, object_.v0, object_.v1, object_.v2):
 
                     if dot(D, object_.normal) > 0: continue
-                    
-                    if not length(p) < closest_t: continue
-                    if not ((t_min < length(p)) and (length(p) < t_max)): continue
-                    closest_t = length(p)
+
+                    if not t1 < closest_t: continue
+                    if not ((t_min < t1) and (t1 < t_max)): continue
+                    closest_t = t1
                     closest_object = object_
                 else: continue
             elif isinstance(object_, Sphere):
@@ -107,8 +107,9 @@ class GSystem:
         if closest_object == None:
             return u8vec3(0, 0, 0)
 
-        # calculating normal for sphere
+        # calculating point on object
         P = O + closest_t * vec3(D)
+        # calculating normal for sphere
         N = P - closest_object.center
         N = normalize(N)
 
@@ -123,11 +124,12 @@ class GSystem:
             return local_color
 
         R = ReflectRay(-D, N)
-        reflected_color = self.traceRay(P, R, 0.1, inf, rdepth - 1)
+        reflected_color = self.traceRay(P, R, 0.001, inf, rdepth - 1)
 
         return vec3asColor(vec3(local_color) * (1 - r) + vec3(reflected_color) * r)
     
     def computeLighting(self, P: Point, N: Vector3f, V: Vector3f, s: float) -> float:
+        assert s != 0, "specular must be -1, or specular > 0"
         """
         P: A point on the surface
         N: Normal of surface
@@ -197,7 +199,7 @@ def IntersectRayTriangle(O: Point, D: Point, v0: Point, v1: Point, v2: Point) ->
     v = dot(D, qvec) * inv_det
     if (v < 0) or (u + v) > 1: return
     distance = dot(e2, qvec) * inv_det
-    return vec3((O + distance) * D)
+    return distance
 
 
 def vec3asColor(V: vec3) -> Color:
