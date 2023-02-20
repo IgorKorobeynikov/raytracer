@@ -15,10 +15,9 @@ https://github.com/linux-admin0001/raytracer/issues/5
 
 ## Gallery
 ![rendered](https://user-images.githubusercontent.com/73735838/220148976-319028c6-5e05-40ab-af04-9f397cf3a971.png)
-![rendered_ultraXD](https://user-images.githubusercontent.com/73735838/219872697-27dc5adc-36c5-4b83-ad83-5d0c0475735e.png)
-![rendered](https://user-images.githubusercontent.com/73735838/218553741-8c7377dd-5e00-473c-a4b2-5fd90bdaf3c7.png)
-![triangle meshes](https://user-images.githubusercontent.com/73735838/210556100-1d1d1aad-550e-4cfd-8e5f-f50bcefb083a.png)
-
+![five_shperes_and_mirror](https://user-images.githubusercontent.com/73735838/220149540-465ef181-8e33-4b64-831a-13d245576e4e.png)
+![one_shpere_with_ideal_mirror_floor](https://user-images.githubusercontent.com/73735838/220149571-6a06834e-6b05-4184-8b75-eeba0c0e47f6.png)
+![other_shpere](https://user-images.githubusercontent.com/73735838/220149615-be9ae5a5-b661-4e37-ad38-7f8a444c6202.png)
 ## Todo
 * add rotation matrix
 * add blurry reflection
