@@ -18,6 +18,11 @@ Requirements: `pillow`, `PyGLM`
 ![rendered](https://user-images.githubusercontent.com/73735838/220170421-2a20fa82-98b0-4f52-80fe-f4a91ddae257.png)
 ![rendered](https://user-images.githubusercontent.com/73735838/220175234-b69bcc2f-292d-4b90-aad7-f1e7976169cd.png)
 ![rendered](https://user-images.githubusercontent.com/73735838/220177127-e4d74685-ddc9-45d8-8ff7-759e7c36d850.png)
+
+#### Blurred reflections (20 secondary reflected rays to suppress noise)
+
+![rendered](https://user-images.githubusercontent.com/73735838/220426765-cb4d11a0-3bcd-46b1-87c8-def5267e996e.png)
+
 ## Todo
 * add rotation matrix
 * add blurry reflection
