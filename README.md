@@ -20,10 +20,13 @@ Requirements: `pillow`, `PyGLM`
 ![rendered](https://user-images.githubusercontent.com/73735838/220177127-e4d74685-ddc9-45d8-8ff7-759e7c36d850.png)
 #### Perfectly polished metal surface (blur ratio: 0)
 ![rendered](https://user-images.githubusercontent.com/73735838/220428677-08edc0c2-7b52-49e1-82e8-85ae870af9b2.png)
-#### Blurred reflections (0 secondary reflected rays to suppress noise, blur ratio: 0)
+#### Blurred reflections (0 secondary reflected rays to suppress noise, blur ratio: 0.5)
 ![rendered](https://user-images.githubusercontent.com/73735838/220428112-7abe0b66-e570-40ca-a60b-0e8f6e19f727.png)
-#### Blurred reflections (20 secondary reflected rays to suppress noise, blur ratio: 0)
+#### Blurred reflections (20 secondary reflected rays to suppress noise, blur ratio: 0.5)
 ![rendered](https://user-images.githubusercontent.com/73735838/220426765-cb4d11a0-3bcd-46b1-87c8-def5267e996e.png)
+#### Blurred reflections (20 secondary reflected rays to suppress noise, blur ratio: 0.1)
+![rendered_](https://user-images.githubusercontent.com/73735838/220432175-2799064a-1cbe-4585-b684-619a1ae0356b.png)
+
 ## Todo
 * add rotation matrix
 * add blurry reflection
