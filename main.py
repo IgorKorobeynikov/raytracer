@@ -187,7 +187,7 @@ def main() -> None:
         reflective=0.95, 
         specular_glare=100,
         refractive=0.0,
-        blurry=0
+        blurry=0.05
     )
     s = Scene(
         [
