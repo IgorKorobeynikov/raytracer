@@ -131,14 +131,14 @@ class GSystem:
             N = closest_object.normal
 
         L = self.computeLighting(P, N, -D, closest_object.material.specular_glare)
-        local_color = vec3(closest_object.material.albedo) * L
+        local_color = closest_object.material.albedo * L
 
         r = closest_object.material.reflective
         if rdepth <= 0 or r <= 0:
             return local_color
 
-        colors = []
-        for sample in range(ANTI_NOISE_SAMPLES):
+        colors = [ReflectRay(-D, N), ]
+        for sample in range(ANTI_NOISE_SAMPLES if not closest_object.material.blurry else 0):
             R = ReflectRay(-D, N) + closest_object.material.blurry * randomInUnitSphere()
             reflected_color = self.traceRay(P, R, 0.1, INF, rdepth - 1)
             colors.append(reflected_color)
@@ -172,16 +172,14 @@ class GSystem:
 
                 n_dot_l = dot(N, L)
                 if n_dot_l > 0:
-                    i += light.intensity * n_dot_l/(length(N) * length(L)) * uniform(0.95, 1)
+                    i += light.intensity * n_dot_l/(length(N) * length(L))
                 if s != -1:
                     R = 2 * N * dot(N, L) - L
                     r_dot_v = dot(R, V)
                     if r_dot_v > 0:
                         i += light.intensity * pow(r_dot_v/(length(R) * length(V)), s)
 
-        assert isinstance(i, vec3)
-        return i
-
+        return norm(i) # To avoid overexposed spot
 
 def main() -> None:
     silver = Material(
