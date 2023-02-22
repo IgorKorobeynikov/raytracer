@@ -53,7 +53,7 @@ class Canvas:
     @property
     def height(self) -> int:
         return len(self._pixels)
-    def put_pixel(self, x: int, y: int, color: Color) -> None:
+    def put_pixel(self, x: int, y: int, color: Tuple[int, int, int]) -> None:
         self._pixels[y][x] = color
         self._image.putpixel([x+self.width//2, y+self.height//2], color)
     def get_pixel(self, x: int, y: int) -> Color:
@@ -119,7 +119,7 @@ class GSystem:
 
         if closest_object == None:
             x, y = rayToSkyboxXY(D, SKBOX.width, SKBOX.height)
-            return vec3(SKBOX.getpixel((x, y)))/255
+            return SKBOX.getpixel((x, y))
 
         # calculating point on object
         P = O + closest_t * vec3(D)
@@ -131,25 +131,26 @@ class GSystem:
             N = closest_object.normal
 
         L = self.computeLighting(P, N, -D, closest_object.material.specular_glare)
-        local_color = closest_object.material.albedo * L
+        local_color = vec3asColor(vec3(closest_object.material.albedo) * L)
 
         r = closest_object.material.reflective
         if rdepth <= 0 or r <= 0:
             return local_color
 
-        colors = [ReflectRay(-D, N), ]
-        for sample in range(ANTI_NOISE_SAMPLES if not closest_object.material.blurry else 0):
+        colors = []
+        for samples in range(ANTI_NOISE_SAMPLES if closest_object.material.blurry else 1):
             R = ReflectRay(-D, N) + closest_object.material.blurry * randomInUnitSphere()
             reflected_color = self.traceRay(P, R, 0.1, INF, rdepth - 1)
             colors.append(reflected_color)
-
         reflected_color = averageColor(colors)
 
-        return (local_color * (1 - r) + reflected_color * r) * vec3(closest_object.material.albedo)
+        return vec3asColor((vec3(local_color) * (1 - r) + vec3(reflected_color) * r) * local_color/255)
 
-    def computeLighting(self, P: Point, N: Vector3f, V: Vector3f, s: float) -> float:
+    def computeLighting(self, P: Point, N: Vector3f, V: Vector3f, s: float) -> vec3:
         assert s != 0, "specular must be -1, or specular > 0"
         """
+        Based on Phong shading model
+ 
         P: A point on the surface
         N: Normal of surface
         """
@@ -179,21 +180,23 @@ class GSystem:
                     if r_dot_v > 0:
                         i += light.intensity * pow(r_dot_v/(length(R) * length(V)), s)
 
-        return norm(i) # To avoid overexposed spot
+        return i
 
 def main() -> None:
+
     silver = Material(
-        albedo=vec3(0.95, 0.93, 0.88), 
-        reflective=0.95, 
+        albedo=vec3(255, 255, 255), 
+        reflective=1, 
         specular_glare=100,
         refractive=0.0,
-        blurry=0.05
+        blurry=0
     )
+
     s = Scene(
         [
             Light(
                 type_=LightType.ambient, 
-                intensity=vec3(0.3, 0.3, 0.3)
+                intensity=vec3(0.5, 0.5, 0.5)
             ),
             Light(
                 type_=LightType.point, 
@@ -210,18 +213,15 @@ def main() -> None:
         ],
 
     )
-    
     progress_bar = tqdm(total=CWIDTH*CHEIGHT, desc="Traced primary rays", colour="green", unit=" ray")
 
     gs = GSystem(s, Canvas(CWIDTH, CHEIGHT), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
             D = rotateX(rotateY(rotateZ(gs.canvasToViewport(x, y), radians(Z_CAM_ROTATION)), radians(Y_CAM_ROTATION)), radians(X_CAM_ROTATION))
-            
-            color = tuple(u8vec3(gs.traceRay(gs.camera.position, D, 1, INF, 4)*255))
+            color = tuple(gs.traceRay(gs.camera.position, D, 1, INF, 4))
             gs.canvas.put_pixel(x, y, color)
             progress_bar.update()
-
     progress_bar.close()
     print(f"\n\033[1m\033[37mTOTAL PRIMARY TRACED RAYS:\033[0m \033[1m\033[42m{CWIDTH*CHEIGHT:,}\033[0m")
     print(f"\n\033[1m\033[37mTOTAL SHADOW/REFLECTED RAYS:\033[0m \033[1m\033[42m{TOTAL_TRACED_RAYS-CWIDTH*CHEIGHT:,}\033[0m")

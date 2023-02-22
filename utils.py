@@ -36,8 +36,5 @@ def randomInUnitSphere() -> vec3:
         if length2(p) < 1:
             return p
 
-def norm(V: vec3) -> vec3:
-    r = V.x if V.x < 1 else 1
-    g = V.y if V.y < 1 else 1
-    b = V.z if V.z < 1 else 1
-    return vec3(r, g, b)
+def vec3asColor(V: vec3) -> Color:
+    return tuple(map(int, V))
