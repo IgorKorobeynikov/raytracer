@@ -2,16 +2,9 @@ from dataclasses import dataclass
 from glm import vec3
 
 @dataclass
-class Albedo:
-    spcular: float = 0
-    diffuse: float = 0
-
-@dataclass
 class Material:
-    color: vec3
-    specular: float
+    albedo: vec3
     reflective: float
+    specular_glare: float
     refractive: float
     blurry: float
-    albedo: Albedo
-

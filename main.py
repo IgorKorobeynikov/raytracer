@@ -1,16 +1,27 @@
-from typing import Any, Optional, List, Tuple
+from typing import Optional, List, Tuple
 from dataclasses import dataclass
+from random import randint, uniform
+from enum import Enum
 
 from PIL import Image
-from glm import u8vec3, vec3, length, cross, dot, normalize
+from glm import length2, radians, rotateX, rotateY, rotateZ, rotate, u8vec3, vec3, length, cross, dot, normalize, vec4
+from tqdm import tqdm
 
 from geometry.sphere import Sphere
 from geometry.primitive import Primitive
 from geometry.triangle import Triangle
+from intersections import IntersectRayTriangle, IntersectRaySphere
+from material import Material
 from rtypes import Color, Point, Vector3f
 from vertexloader import Loader
-from enum import Enum
-inf = float("inf")
+from utils import *
+from settings import *
+
+INF = float("INF")
+
+TOTAL_TRACED_RAYS = 0
+
+SKBOX = Image.open("sky.jpg")
 
 class LightType(Enum):
     ambient = 0
@@ -76,7 +87,7 @@ class GSystem:
         return vec3(x, y, d)
 
     def closestIntersection(self, O: Point, D: Point, t_min: float, t_max: float) -> Tuple[Primitive, float]:
-        closest_t = inf
+        closest_t = INF
         closest_object = None
         for object_ in self.scene.objects:
             if isinstance(object_, Triangle):
@@ -102,10 +113,13 @@ class GSystem:
 
         return closest_object, closest_t
     def traceRay(self, O: Point, D: Point, t_min: float, t_max: float, rdepth: float) -> Color:
+        global TOTAL_TRACED_RAYS
+        TOTAL_TRACED_RAYS += 1
         closest_object, closest_t = self.closestIntersection(O, D, t_min, t_max)
 
         if closest_object == None:
-            return u8vec3(0, 0, 0)
+            x, y = rayToSkyboxXY(D, SKBOX.width, SKBOX.height)
+            return vec3(SKBOX.getpixel((x, y)))/255
 
         # calculating point on object
         P = O + closest_t * vec3(D)
@@ -116,18 +130,23 @@ class GSystem:
         if not isinstance(closest_object, Sphere):
             N = closest_object.normal
 
-        L = self.computeLighting(P, N, -D, closest_object.specular)
-        local_color = vec3asColor(vec3(closest_object.color) * L)
+        L = self.computeLighting(P, N, -D, closest_object.material.specular_glare)
+        local_color = vec3(closest_object.material.albedo) * L
 
-        r = closest_object.reflective
+        r = closest_object.material.reflective
         if rdepth <= 0 or r <= 0:
             return local_color
 
-        R = ReflectRay(-D, N)
-        reflected_color = self.traceRay(P, R, 0.001, inf, rdepth - 1)
+        colors = []
+        for sample in range(ANTI_NOISE_SAMPLES):
+            R = ReflectRay(-D, N) + closest_object.material.blurry * randomInUnitSphere()
+            reflected_color = self.traceRay(P, R, 0.1, INF, rdepth - 1)
+            colors.append(reflected_color)
 
-        return vec3asColor(vec3(local_color) * (1 - r) + vec3(reflected_color) * r)
-    
+        reflected_color = averageColor(colors)
+
+        return (local_color * (1 - r) + reflected_color * r) * vec3(closest_object.material.albedo)
+
     def computeLighting(self, P: Point, N: Vector3f, V: Vector3f, s: float) -> float:
         assert s != 0, "specular must be -1, or specular > 0"
         """
@@ -140,12 +159,11 @@ class GSystem:
                 i += light.intensity
             else:
                 if light.type_ == LightType.point:
-                    # L направлен к светильнику
                     L = light.position - P
                     t_max = 1
                 else:
                     L = -light.direction
-                    t_max = inf
+                    t_max = INF
 
                 shadow_obj, shadow_t = self.closestIntersection(P, L, 0.001, t_max)
 
@@ -154,7 +172,7 @@ class GSystem:
 
                 n_dot_l = dot(N, L)
                 if n_dot_l > 0:
-                    i += light.intensity * n_dot_l/(length(N) * length(L))
+                    i += light.intensity * n_dot_l/(length(N) * length(L)) * uniform(0.95, 1)
                 if s != -1:
                     R = 2 * N * dot(N, L) - L
                     r_dot_v = dot(R, V)
@@ -164,109 +182,52 @@ class GSystem:
         assert isinstance(i, vec3)
         return i
 
-def ReflectRay(R, N):
-    return 2 * N * dot(N, R) - R
-
-def IntersectRaySphere(O: Point, D: Point, sphere: Sphere) -> Color:
-    r = sphere.radius
-    CO = O - sphere.center
-    a = dot(D, D)
-    b  = 2 * dot(CO, D)
-    c = dot(CO, CO) - r*r
-    discriminant = b*b - 4*a*c
-    
-    if discriminant < 0:
-        return inf, inf
-    t1 = (-b + discriminant**0.5) / (2*a)
-    t2 = (-b - discriminant**0.5) / (2*a)
-    return t1, t2
-
-def IntersectRayTriangle(O: Point, D: Point, v0: Point, v1: Point, v2: Point) -> Optional[Point]:
-    """
-    Based on the Moller-Trumbore ray-triangle intersection algorithm
-    """
-    v0, v1, v2 = vec3(v0), vec3(v1), vec3(v2)
-    e1 = v1 - v0
-    e2 = v2 - v0
-    pvec = cross(D, e2)
-    det = dot(e1, pvec)
-    if det < 1e-8 and det > -1e-8: return
-    inv_det = 1/ det
-    tvec = O - v0
-    u = dot(tvec, pvec) * inv_det
-    if u < 0 or u > 1: return
-    qvec = cross(tvec, e1)
-    v = dot(D, qvec) * inv_det
-    if (v < 0) or (u + v) > 1: return
-    distance = dot(e2, qvec) * inv_det
-    return distance
-
-
-def vec3asColor(V: vec3) -> Color:
-    return tuple(map(int, V))
 
 def main() -> None:
-
+    silver = Material(
+        albedo=vec3(0.95, 0.93, 0.88), 
+        reflective=0.95, 
+        specular_glare=100,
+        refractive=0.0,
+        blurry=0
+    )
     s = Scene(
         [
             Light(
                 type_=LightType.ambient, 
-                intensity=vec3(0.2, 0.2, 0.2)
+                intensity=vec3(0.3, 0.3, 0.3)
             ),
             Light(
                 type_=LightType.point, 
-                intensity=vec3(0.6, 0.6, 0.6), 
-                position=vec3(2, 1, 0)
-            ),
-            Light(
-                type_=LightType.directional,
-                intensity=vec3(0.2, 0.2, 0.2), 
-                direction=-vec3(1, 4, 4)
+                intensity=vec3(0.8, 0.8, 0.8), 
+                position=vec3(5, 8, 7)
             ),
         ],
         [
-            Triangle(vec3(-1.5, 0.5, 5.2), vec3(1.5, 0.5, 5.2), vec3(-1.5, 2, 4), vec3(0, 0, 0), 500, 1),
-            Triangle(vec3(1.5, 0.5, 5.2), vec3(1.5, 2, 4), vec3(-1.5, 2, 4), vec3(0, 0, 0), 500, 1),
             Sphere(
-                color=u8vec3(255, 0, 0), 
-                radius=1, 
-                center=vec3(0, -1, 3),
-                specular=500,
-                reflective = 0.2
-            ),
-            Sphere(
-                color=u8vec3(0, 0, 255), 
-                radius=1, 
-                center=vec3(2, 0, 4),
-                specular=500,
-                reflective=0.3
-            ),
-            Sphere(
-                color=u8vec3(0, 255, 0), 
-                radius=1, 
-                center=vec3(-2, 0, 4),
-                specular=10,
-                reflective=0.4 
-            ),
-            Sphere(
-                color=u8vec3(255, 255, 0), 
-                radius=5000, 
-                center=vec3(0, -5001, 0),
-                specular=1000,
-                reflective=0.5
+                radius=4, 
+                center=vec3(0, 0, -14),
+                material=silver
             )
-            #*Loader("./duck.obj").triangles
-        ]
+        ],
+
     )
-    gs = GSystem(s, Canvas(1200, 600), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
+    
+    progress_bar = tqdm(total=CWIDTH*CHEIGHT, desc="Traced primary rays", colour="green", unit=" ray")
+
+    gs = GSystem(s, Canvas(CWIDTH, CHEIGHT), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
-
-            D = gs.canvasToViewport(x, y) 
+            D = rotateX(rotateY(rotateZ(gs.canvasToViewport(x, y), radians(Z_CAM_ROTATION)), radians(Y_CAM_ROTATION)), radians(X_CAM_ROTATION))
             
-            color = tuple(gs.traceRay(gs.camera.position, D, 1, inf, 4))
+            color = tuple(u8vec3(gs.traceRay(gs.camera.position, D, 1, INF, 4)*255))
             gs.canvas.put_pixel(x, y, color)
+            progress_bar.update()
 
+    progress_bar.close()
+    print(f"\n\033[1m\033[37mTOTAL PRIMARY TRACED RAYS:\033[0m \033[1m\033[42m{CWIDTH*CHEIGHT:,}\033[0m")
+    print(f"\n\033[1m\033[37mTOTAL SHADOW/REFLECTED RAYS:\033[0m \033[1m\033[42m{TOTAL_TRACED_RAYS-CWIDTH*CHEIGHT:,}\033[0m")
+    print(f"\n\033[1m\033[37mTOTAL TRACED RAYS:\033[0m \033[1m\033[42m{TOTAL_TRACED_RAYS:,}\033[0m")
     gs.canvas.show()
 
 if __name__ == "__main__":
