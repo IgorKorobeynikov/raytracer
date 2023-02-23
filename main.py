@@ -37,10 +37,10 @@ class Light:
 
 
 class Scene:
-    lights = List[Light]
+    lights: List[Light] = []
     objects: List[Primitive] = []
-    def __init__(self, ligths, objects) -> None:
-        self.lights = ligths
+    def __init__(self, lights, objects) -> None:
+        self.lights = lights
         self.objects = objects
 class Canvas:
     def __init__(self, w: int, h: int) -> None:
@@ -56,7 +56,7 @@ class Canvas:
     def put_pixel(self, x: int, y: int, color: Tuple[int, int, int]) -> None:
         self._pixels[y][x] = color
         self._image.putpixel([x+self.width//2, y+self.height//2], color)
-    def get_pixel(self, x: int, y: int) -> Color:
+    def get_pixel(self, x: int, y: int) -> Tuple[int, int, int]:
         return self._pixels[y][x]
     def show(self) -> None:
         self._image.save("rendered.png")
