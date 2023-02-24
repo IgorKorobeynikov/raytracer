@@ -86,7 +86,7 @@ class GSystem:
         )
         return vec3(x, y, d)
 
-    def closestIntersection(self, O: Point, D: Point, t_min: float, t_max: float) -> Tuple[Primitive, float]:
+    def castRay(self, O: Point, D: Point, t_min: float, t_max: float) -> Tuple[Primitive, float]:
         closest_t = INF
         closest_object = None
         for object_ in self.scene.objects:
@@ -115,7 +115,7 @@ class GSystem:
     def traceRay(self, O: Point, D: Point, t_min: float, t_max: float, rdepth: float) -> Color:
         global TOTAL_TRACED_RAYS
         TOTAL_TRACED_RAYS += 1
-        closest_object, closest_t = self.closestIntersection(O, D, t_min, t_max)
+        closest_object, closest_t = self.castRay(O, D, t_min, t_max)
 
         if closest_object == None:
             x, y = rayToSkyboxXY(D, SKBOX.width, SKBOX.height)
@@ -166,7 +166,7 @@ class GSystem:
                     L = -light.direction
                     t_max = INF
 
-                shadow_obj, shadow_t = self.closestIntersection(P, L, 0.001, t_max)
+                shadow_obj, shadow_t = self.castRay(P, L, 0.001, t_max)
 
                 if shadow_obj != None:
                     continue
