@@ -1,4 +1,3 @@
-from time import time
 from typing import Optional, List, Tuple
 from dataclasses import dataclass
 from random import randint, uniform
@@ -60,7 +59,7 @@ class Canvas:
     def get_pixel(self, x: int, y: int) -> Tuple[int, int, int]:
         return self._pixels[y][x]
     def show(self) -> None:
-        self._image.save(f"rendered{round(time())}.png")
+        self._image.save("rendered.png")
         self._image.show()
 @dataclass
 class Viewport:
@@ -119,53 +118,66 @@ class GSystem:
 
         for i in range(rdepth):
             closest_object, closest_t = self.castRay(O, D, t_min, t_max)
-            if closest_object == None: return vec3asColor(vec3(0.0))
-            P = O + closest_t * vec3(D)
-            # calculating normal for sphere
-            N = P - closest_object.center
-            N = normalize(N)
+            if closest_object:
+                P = O + closest_t * vec3(D)
+                # calculating normal for sphere
+                N = P - closest_object.center
+                N = normalize(N)
 
-            if not isinstance(closest_object, Sphere):
-                N = closest_object.normal
+                if not isinstance(closest_object, Sphere):
+                    N = closest_object.normal
 
-            t_min = 0.1
-            D = ReflectRay(-D, N) + closest_object.material.roughness * randomInUnitSphere()
+                t_min = 0.1
+                D = ReflectRay(-D, N) + closest_object.material.roughness * randomInUnitSphere()
 
-            L += F * closest_object.material.emmitance
-            F *= closest_object.material.reflectance
+                L += F * closest_object.material.emmitance
+                F *= closest_object.material.reflectance
+            else: F = vec3(0.0)
         #print(L)
         return vec3asColor(u8vec3(L*255))
+
+def avg(colors):
+    r, g, b = 0,0,0
+    for color in colors:
+        r += color[0]
+        g += color[1]
+        b += color[2]
+    r //= len(colors)
+    g //= len(colors)
+    b //= len(colors)
+    return r,g,b
+
 def main() -> None:
 
     matte = Material(
         reflectance=vec3(1.0), 
         emmitance=vec3(0.0),
-        roughness=1.0
+        roughness=1
     )
     redm = Material(
-        reflectance=vec3(0.84, 0.07, 0.07), 
+        reflectance=vec3(1, 0.0, 0.0), 
         emmitance=vec3(0.0),
-        roughness=1.0
+        roughness=1
     )
     greenm = Material(
-        reflectance=vec3(0.08, 0.88, 0.08), 
+        reflectance=vec3(0.0, 1, 0.0), 
         emmitance=vec3(0.0),
-        roughness=1.0
+        roughness=1
     )
     mattes = Material(
         reflectance=vec3(0.94, 0.94, 0.94), 
         emmitance=vec3(0.0),
-        roughness=1.0
+        roughness=1
     )
     light = Material(
         reflectance=vec3(0.99, 0.98, 0.85),
-        emmitance=vec3(6.0),
-        roughness=0.0
+        emmitance=vec3(10),
+        roughness=0
     )
     grenmatte = Material(
         reflectance=vec3(0.0, 0.53, 0.33),
         emmitance=0.0,
-        roughness=1.0
+        roughness=1
     )
     s = Scene(
         [
@@ -177,8 +189,8 @@ def main() -> None:
             Triangle(vec3(-1, -1, 3), vec3(-1, 1, 3), vec3(-1, 1, 0), material=redm),
             Triangle(vec3(1, -1, 0), vec3(1, 1, 0), vec3(1, -1, 3), material=greenm),
             Triangle(vec3(1, 1, 0), vec3(1, 1, 3), vec3(1, -1, 3), material=greenm),
-            Triangle(vec3(1, -1, 3), vec3(-1, 1, 3), vec3(-1, -1, 3), material=mattes),
-            Triangle(vec3(1, -1, 3), vec3(1, 1, 3), vec3(-1, 1, 3), material=mattes),
+            Triangle(vec3(-1, -1, 3), vec3(-1, 1, 3), vec3(1, -1, 3), material=mattes),
+            Triangle(vec3(-1, 1, 3), vec3(1, 1, 3),  vec3(1, -1, 3),material=mattes),
             Triangle(vec3(-1, 1, 3), vec3(1, 1, 0), vec3(-1, 1, 0), material=matte),
             Triangle(vec3(1, 1, 0), vec3(-1, 1, 3), vec3(1, 1, 3), material=matte),
 
@@ -195,9 +207,15 @@ def main() -> None:
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
             D = rotateX(rotateY(rotateZ(gs.canvasToViewport(x, y), radians(Z_CAM_ROTATION)), radians(Y_CAM_ROTATION)), radians(X_CAM_ROTATION))
-            color = tuple(gs.traceRay(gs.camera.position, D, 1, INF, 2))
+            #color = tuple(gs.traceRay(gs.camera.position, D, 1, INF, 10))
+            color = avg([tuple(gs.traceRay(gs.camera.position, D, 1, INF, 10)) for i in range(100)])
             gs.canvas.put_pixel(x, y, color)
+            progress_bar.update()
+    progress_bar.close()
+    print(f"\n\033[1m\033[37mTOTAL PRIMARY TRACED RAYS:\033[0m \033[1m\033[42m{CWIDTH*CHEIGHT:,}\033[0m")
+    print(f"\n\033[1m\033[37mTOTAL SHADOW/REFLECTED RAYS:\033[0m \033[1m\033[42m{TOTAL_TRACED_RAYS-CWIDTH*CHEIGHT:,}\033[0m")
+    print(f"\n\033[1m\033[37mTOTAL TRACED RAYS:\033[0m \033[1m\033[42m{TOTAL_TRACED_RAYS:,}\033[0m")
+    gs.canvas.show()
 
 if __name__ == "__main__":
-    for i in range(1000):
-        main()
+    main()
