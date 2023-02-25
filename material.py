@@ -3,8 +3,7 @@ from glm import vec3
 
 @dataclass
 class Material:
-    albedo: vec3
-    reflective: float
-    specular_glare: float
-    refractive: float
-    blurry: float
+    reflectance: vec3
+    emmitance: vec3
+    roughness: float
+    #opacity: float

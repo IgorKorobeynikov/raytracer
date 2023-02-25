@@ -1,3 +1,4 @@
+from time import time
 from typing import Optional, List, Tuple
 from dataclasses import dataclass
 from random import randint, uniform
@@ -59,7 +60,7 @@ class Canvas:
     def get_pixel(self, x: int, y: int) -> Tuple[int, int, int]:
         return self._pixels[y][x]
     def show(self) -> None:
-        self._image.save("rendered.png")
+        self._image.save(f"rendered{round(time())}.png")
         self._image.show()
 @dataclass
 class Viewport:
@@ -113,123 +114,90 @@ class GSystem:
 
         return closest_object, closest_t
     def traceRay(self, O: Point, D: Point, t_min: float, t_max: float, rdepth: float) -> Color:
-        global TOTAL_TRACED_RAYS
-        TOTAL_TRACED_RAYS += 1
-        closest_object, closest_t = self.castRay(O, D, t_min, t_max)
+        L = vec3(0.0)
+        F = vec3(1.0)
 
-        if closest_object == None:
-            x, y = rayToSkyboxXY(D, SKBOX.width, SKBOX.height)
-            try:
-                return SKBOX.getpixel((x, y))
-            except Exception as exc:
-                print(exc, x, y)
+        for i in range(rdepth):
+            closest_object, closest_t = self.castRay(O, D, t_min, t_max)
+            if closest_object == None: return vec3asColor(vec3(0.0))
+            P = O + closest_t * vec3(D)
+            # calculating normal for sphere
+            N = P - closest_object.center
+            N = normalize(N)
 
-        # calculating point on object
-        P = O + closest_t * vec3(D)
-        # calculating normal for sphere
-        N = P - closest_object.center
-        N = normalize(N)
+            if not isinstance(closest_object, Sphere):
+                N = closest_object.normal
 
-        if not isinstance(closest_object, Sphere):
-            N = closest_object.normal
+            t_min = 0.1
+            D = ReflectRay(-D, N) + closest_object.material.roughness * randomInUnitSphere()
 
-        L = self.computeLighting(P, N, -D, closest_object.material.specular_glare)
-        local_color = vec3asColor(vec3(closest_object.material.albedo) * L)
-
-        r = closest_object.material.reflective
-        if rdepth <= 0 or r <= 0:
-            return local_color
-
-        colors = []
-        for samples in range(ANTI_NOISE_SAMPLES if closest_object.material.blurry else 1):
-            R = ReflectRay(-D, N) + closest_object.material.blurry * randomInUnitSphere()
-            reflected_color = self.traceRay(P, R, 0.1, INF, rdepth - 1)
-            colors.append(reflected_color)
-        reflected_color = averageColor(colors)
-
-        return vec3asColor((vec3(local_color) * (1 - r) + vec3(reflected_color) * r) * local_color/255)
-
-    def computeLighting(self, P: Point, N: Vector3f, V: Vector3f, s: float) -> vec3:
-        assert s != 0, "specular must be -1, or specular > 0"
-        """
-        Based on Phong shading model
- 
-        P: A point on the surface
-        N: Normal of surface
-        """
-        i = vec3()
-        for light in self.scene.lights:
-            if light.type_ == LightType.ambient:
-                i += light.intensity
-            else:
-                if light.type_ == LightType.point:
-                    L = light.position - P
-                    t_max = 1
-                else:
-                    L = -light.direction
-                    t_max = INF
-
-                shadow_obj, shadow_t = self.castRay(P, L, 0.001, t_max)
-
-                if shadow_obj != None:
-                    continue
-
-                n_dot_l = dot(N, L)
-                if n_dot_l > 0:
-                    i += light.intensity * n_dot_l/(length(N) * length(L))
-                if s != -1:
-                    R = 2 * N * dot(N, L) - L
-                    r_dot_v = dot(R, V)
-                    if r_dot_v > 0:
-                        i += light.intensity * pow(r_dot_v/(length(R) * length(V)), s)
-
-        return i
-
+            L += F * closest_object.material.emmitance
+            F *= closest_object.material.reflectance
+        #print(L)
+        return vec3asColor(u8vec3(L*255))
 def main() -> None:
 
-    silver = Material(
-        albedo=vec3(255, 255, 255), 
-        reflective=1, 
-        specular_glare=100,
-        refractive=0.0,
-        blurry=0
+    matte = Material(
+        reflectance=vec3(1.0), 
+        emmitance=vec3(0.0),
+        roughness=1.0
     )
-
+    redm = Material(
+        reflectance=vec3(0.84, 0.07, 0.07), 
+        emmitance=vec3(0.0),
+        roughness=1.0
+    )
+    greenm = Material(
+        reflectance=vec3(0.08, 0.88, 0.08), 
+        emmitance=vec3(0.0),
+        roughness=1.0
+    )
+    mattes = Material(
+        reflectance=vec3(0.94, 0.94, 0.94), 
+        emmitance=vec3(0.0),
+        roughness=1.0
+    )
+    light = Material(
+        reflectance=vec3(0.99, 0.98, 0.85),
+        emmitance=vec3(6.0),
+        roughness=0.0
+    )
+    grenmatte = Material(
+        reflectance=vec3(0.0, 0.53, 0.33),
+        emmitance=0.0,
+        roughness=1.0
+    )
     s = Scene(
         [
-            Light(
-                type_=LightType.ambient, 
-                intensity=vec3(0.5, 0.5, 0.5)
-            ),
-            Light(
-                type_=LightType.point, 
-                intensity=vec3(0.8, 0.8, 0.8), 
-                position=vec3(5, 8, 7)
-            ),
         ],
         [
-            Sphere(
-                radius=4, 
-                center=vec3(0, 0, -14),
-                material=silver
-            )
+            Triangle(vec3(-1, -1, 0), vec3(1, -1, 0), vec3(-1, -1, 3), material=matte),
+            Triangle(vec3(1, -1, 3), vec3(-1, -1, 3), vec3(1, -1, 0), material=matte),
+            Triangle(vec3(-1, -1, 3), vec3(-1, 1, 0), vec3(-1, -1, 0), material=redm),
+            Triangle(vec3(-1, -1, 3), vec3(-1, 1, 3), vec3(-1, 1, 0), material=redm),
+            Triangle(vec3(1, -1, 0), vec3(1, 1, 0), vec3(1, -1, 3), material=greenm),
+            Triangle(vec3(1, 1, 0), vec3(1, 1, 3), vec3(1, -1, 3), material=greenm),
+            Triangle(vec3(1, -1, 3), vec3(-1, 1, 3), vec3(-1, -1, 3), material=mattes),
+            Triangle(vec3(1, -1, 3), vec3(1, 1, 3), vec3(-1, 1, 3), material=mattes),
+            Triangle(vec3(-1, 1, 3), vec3(1, 1, 0), vec3(-1, 1, 0), material=matte),
+            Triangle(vec3(1, 1, 0), vec3(-1, 1, 3), vec3(1, 1, 3), material=matte),
+
+            Triangle(vec3(-0.5, 0.99, 1), vec3(-0.5, 0.99, 1.5), vec3(0.5, 0.99, 1), material=light),
+            Triangle(vec3(-0.5, 0.99, 1.5), vec3(0.5, 0.99, 1.5), vec3(0.5, 0.99, 1), material=light),
+
+            Sphere(0.5, vec3(-0.5, -0.5, 2), grenmatte)
         ],
 
     )
     progress_bar = tqdm(total=CWIDTH*CHEIGHT, desc="Traced primary rays", colour="green", unit=" ray")
 
-    gs = GSystem(s, Canvas(CWIDTH, CHEIGHT), Viewport(2, 1, 1), Camera(vec3(0, 0, 0)))
+    gs = GSystem(s, Canvas(CWIDTH, CHEIGHT), Viewport(1, 1, 1), Camera(vec3(0, 0, -2.1)))
     for x in range(-gs.canvas.width//2, gs.canvas.width//2):
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
             D = rotateX(rotateY(rotateZ(gs.canvasToViewport(x, y), radians(Z_CAM_ROTATION)), radians(Y_CAM_ROTATION)), radians(X_CAM_ROTATION))
-            color = tuple(gs.traceRay(gs.camera.position, D, 1, INF, 4))
+            color = tuple(gs.traceRay(gs.camera.position, D, 1, INF, 2))
             gs.canvas.put_pixel(x, y, color)
-            progress_bar.update()
-    progress_bar.close()
-    print(f"\n\033[1m\033[37mTOTAL PRIMARY TRACED RAYS:\033[0m \033[1m\033[42m{CWIDTH*CHEIGHT:,}\033[0m")
-    print(f"\n\033[1m\033[37mTOTAL SHADOW/REFLECTED RAYS:\033[0m \033[1m\033[42m{TOTAL_TRACED_RAYS-CWIDTH*CHEIGHT:,}\033[0m")
-    print(f"\n\033[1m\033[37mTOTAL TRACED RAYS:\033[0m \033[1m\033[42m{TOTAL_TRACED_RAYS:,}\033[0m")
-    gs.canvas.show()
 
 if __name__ == "__main__":
-    main()
+    for i in range(1000):
+        main()
