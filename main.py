@@ -119,7 +119,10 @@ class GSystem:
 
         if closest_object == None:
             x, y = rayToSkyboxXY(D, SKBOX.width, SKBOX.height)
-            return SKBOX.getpixel((x, y))
+            try:
+                return SKBOX.getpixel((x, y))
+            except Exception as exc:
+                print(exc, x, y)
 
         # calculating point on object
         P = O + closest_t * vec3(D)
