@@ -4,7 +4,7 @@ from random import randint, uniform
 from enum import Enum
 
 from PIL import Image
-from glm import length2, radians, rotateX, rotateY, rotateZ, rotate, u8vec3, vec3, length, cross, dot, normalize, vec4
+from glm import length2, mat3, mix, radians, rotateX, rotateY, rotateZ, rotate, u8vec3, vec3, length, cross, dot, normalize, vec4
 from tqdm import tqdm
 
 from geometry.sphere import Sphere
@@ -46,7 +46,7 @@ class Canvas:
     def __init__(self, w: int, h: int) -> None:
         assert w + h != 0
         self._image = Image.new("RGB", (w, h))
-        self._pixels = [[(0, 0, 0) for x in range(w)] for y in range(h)] 
+        self._pixels = [[(255, 255, 255) for x in range(w)] for y in range(h)] 
     @property
     def width(self) -> int:
         return len(self._pixels[0])
@@ -123,17 +123,27 @@ class GSystem:
                 # calculating normal for sphere
                 N = P - closest_object.center
                 N = normalize(N)
-
                 if not isinstance(closest_object, Sphere):
                     N = closest_object.normal
 
-                t_min = 0.1
-                D = ReflectRay(-D, N) + closest_object.material.roughness * randomInUnitSphere()
+                #hemisphereDistributedDirection = normal_oriented_hemisphere_point(random2D(), N)
+                random_vec = normal_oriented_hemisphere_point(N) # normalize(2.0 * random3D() - 1.0)
 
+                #tangent = cross(random_vec, N)
+                #bitangent = cross(N, tangent)
+                #transform = mat3(tangent, bitangent, N)
+                #newRayDirection = transform * hemisphereDistributedDirection
+
+                #idealReflection = ReflectRay(-D, N)
+                #newRayDirection = normalize(mix(newRayDirection, idealReflection, closest_object.material.roughness))
+                
+                t_min = 0.1
+                #D = ReflectRay(-D, N) + closest_object.material.roughness * randomInUnitSphere()
+                O = P
+                D = normalize(random_vec)
                 L += F * closest_object.material.emmitance
                 F *= closest_object.material.reflectance
             else: F = vec3(0.0)
-        #print(L)
         return vec3asColor(u8vec3(L*255))
 
 def avg(colors):
@@ -165,8 +175,8 @@ def main() -> None:
         roughness=1
     )
     mattes = Material(
-        reflectance=vec3(0.94, 0.94, 0.94), 
-        emmitance=vec3(0.0),
+        reflectance=vec3(1,1,1), 
+        emmitance=vec3(0),
         roughness=1
     )
     light = Material(
@@ -175,10 +185,14 @@ def main() -> None:
         roughness=0
     )
     grenmatte = Material(
-        reflectance=vec3(0.0, 0.53, 0.33),
+        reflectance=vec3(1, 1, 0),
         emmitance=0.0,
         roughness=1
     )
+    a=Triangle(vec3(-1, -1, 3), vec3(-1, 1, 3), vec3(1, -1, 3), material=mattes)
+    a1=Triangle(vec3(-1, 1, 3), vec3(1, 1, 3),  vec3(1, -1, 3),material=mattes)
+    a.normal=vec3(0,0,-1)
+    a1.normal=vec3(0,0,-1)
     s = Scene(
         [
         ],
@@ -189,13 +203,14 @@ def main() -> None:
             Triangle(vec3(-1, -1, 3), vec3(-1, 1, 3), vec3(-1, 1, 0), material=redm),
             Triangle(vec3(1, -1, 0), vec3(1, 1, 0), vec3(1, -1, 3), material=greenm),
             Triangle(vec3(1, 1, 0), vec3(1, 1, 3), vec3(1, -1, 3), material=greenm),
-            Triangle(vec3(-1, -1, 3), vec3(-1, 1, 3), vec3(1, -1, 3), material=mattes),
-            Triangle(vec3(-1, 1, 3), vec3(1, 1, 3),  vec3(1, -1, 3),material=mattes),
-            Triangle(vec3(-1, 1, 3), vec3(1, 1, 0), vec3(-1, 1, 0), material=matte),
-            Triangle(vec3(1, 1, 0), vec3(-1, 1, 3), vec3(1, 1, 3), material=matte),
+            
+            a, a1,
+            
+            Triangle(vec3(-1, 1, 3), vec3(1, 1, 0), vec3(-1, 1, 0), material=light),
+            Triangle(vec3(1, 1, 0), vec3(-1, 1, 3), vec3(1, 1, 3), material=light),
 
-            Triangle(vec3(-0.5, 0.99, 1), vec3(-0.5, 0.99, 1.5), vec3(0.5, 0.99, 1), material=light),
-            Triangle(vec3(-0.5, 0.99, 1.5), vec3(0.5, 0.99, 1.5), vec3(0.5, 0.99, 1), material=light),
+            #Triangle(vec3(-0.5, 0.99, 1), vec3(-0.5, 0.99, 1.5), vec3(0.5, 0.99, 1), material=light),
+            #Triangle(vec3(-0.5, 0.99, 1.5), vec3(0.5, 0.99, 1.5), vec3(0.5, 0.99, 1), material=light),
 
             Sphere(0.5, vec3(-0.5, -0.5, 2), grenmatte)
         ],
@@ -208,13 +223,10 @@ def main() -> None:
         for y in range(-gs.canvas.height//2, gs.canvas.height//2):
             D = rotateX(rotateY(rotateZ(gs.canvasToViewport(x, y), radians(Z_CAM_ROTATION)), radians(Y_CAM_ROTATION)), radians(X_CAM_ROTATION))
             #color = tuple(gs.traceRay(gs.camera.position, D, 1, INF, 10))
-            color = avg([tuple(gs.traceRay(gs.camera.position, D, 1, INF, 10)) for i in range(100)])
+            color = avg([tuple(gs.traceRay(gs.camera.position, D, 1, INF, 5)) for i in range(10)])
             gs.canvas.put_pixel(x, y, color)
             progress_bar.update()
     progress_bar.close()
-    print(f"\n\033[1m\033[37mTOTAL PRIMARY TRACED RAYS:\033[0m \033[1m\033[42m{CWIDTH*CHEIGHT:,}\033[0m")
-    print(f"\n\033[1m\033[37mTOTAL SHADOW/REFLECTED RAYS:\033[0m \033[1m\033[42m{TOTAL_TRACED_RAYS-CWIDTH*CHEIGHT:,}\033[0m")
-    print(f"\n\033[1m\033[37mTOTAL TRACED RAYS:\033[0m \033[1m\033[42m{TOTAL_TRACED_RAYS:,}\033[0m")
     gs.canvas.show()
 
 if __name__ == "__main__":
