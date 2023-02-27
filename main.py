@@ -199,20 +199,22 @@ def main() -> None:
         [
             Triangle(vec3(-1, -1, 0), vec3(1, -1, 0), vec3(-1, -1, 3), material=matte),
             Triangle(vec3(1, -1, 3), vec3(-1, -1, 3), vec3(1, -1, 0), material=matte),
+
             Triangle(vec3(-1, -1, 3), vec3(-1, 1, 0), vec3(-1, -1, 0), material=redm),
             Triangle(vec3(-1, -1, 3), vec3(-1, 1, 3), vec3(-1, 1, 0), material=redm),
+
             Triangle(vec3(1, -1, 0), vec3(1, 1, 0), vec3(1, -1, 3), material=greenm),
             Triangle(vec3(1, 1, 0), vec3(1, 1, 3), vec3(1, -1, 3), material=greenm),
             
             a, a1,
             
-            Triangle(vec3(-1, 1, 3), vec3(1, 1, 0), vec3(-1, 1, 0), material=light),
-            Triangle(vec3(1, 1, 0), vec3(-1, 1, 3), vec3(1, 1, 3), material=light),
+            Triangle(vec3(-1, 1, 3), vec3(1, 1, 0), vec3(-1, 1, 0), material=matte),
+            Triangle(vec3(1, 1, 0), vec3(-1, 1, 3), vec3(1, 1, 3), material=matte),
 
-            #Triangle(vec3(-0.5, 0.99, 1), vec3(-0.5, 0.99, 1.5), vec3(0.5, 0.99, 1), material=light),
-            #Triangle(vec3(-0.5, 0.99, 1.5), vec3(0.5, 0.99, 1.5), vec3(0.5, 0.99, 1), material=light),
+            Triangle(vec3(-0.5, 0.99, 1), vec3(-0.5, 0.99, 1.5), vec3(0.5, 0.99, 1), material=light),
+            Triangle(vec3(-0.5, 0.99, 1.5), vec3(0.5, 0.99, 1.5), vec3(0.5, 0.99, 1), material=light),
 
-            Sphere(0.5, vec3(-0.5, -0.5, 2), grenmatte)
+            Sphere(0.5, vec3(-0, -0.5, 1.5), grenmatte)
         ],
 
     )
